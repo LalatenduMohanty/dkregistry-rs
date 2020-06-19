@@ -77,27 +77,23 @@ impl WwwAuthenticateHeaderContent {
             .ok_or_else(|| Error::from(format!("method not found in {}", header)))?
             .as_str();
 
-        let serialized_content = serde_json::Value::Object(serde_json::Map::from_iter(
-            [(
-                method.to_string(),
-                serde_json::Value::Object(serde_json::Map::from_iter(
-                    captures.into_iter().filter_map(|capture| {
-                        match (
-                            capture.name("key").map(|n| n.as_str().to_string()),
-                            capture.name("value").map(|n| n.as_str().to_string()),
-                        ) {
-                            (Some(key), Some(value)) => {
-                                Some((key, serde_json::Value::String(value)))
-                            }
-                            _ => None,
-                        }
-                    }),
-                )),
-            )]
-            .iter()
-            .cloned(),
-        ))
-        .to_string();
+        let serialized_content = format!(
+            r#"{{ "{}": {{ {} }} }}"#,
+            method,
+            captures
+                .iter()
+                .filter_map(|capture| {
+                    match (
+                        capture.name("key").map(|n| n.as_str().to_string()),
+                        capture.name("value").map(|n| n.as_str().to_string()),
+                    ) {
+                        (Some(key), Some(value)) => Some(format!(r#""{}": "{}""#, key, value)),
+                        _ => None,
+                    }
+                })
+                .collect::<Vec<_>>()
+                .join(", "),
+        );
 
         // Deserialize the content
         let mut unsupported_keys = std::collections::HashSet::new();
